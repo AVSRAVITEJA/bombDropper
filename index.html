@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drone Bomb Dropper Interface</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #fff;
+    }
+    h1 {
+      background-color: #1f1f1f;
+      color: white;
+      padding: 1rem;
+      margin: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      text-align: center;
+    }
+    #map {
+      height: calc(100vh - 180px);
+      width: 100%;
+    }
+    #info {
+      margin-top: 10px;
+      font-size: 16px;
+      text-align: center;
+    }
+    #status {
+      margin-top: 5px;
+      color: lightgreen;
+      text-align: center;
+    }
+    .leaflet-control-geocoder {
+      max-width: 600px;
+      width: 100%;
+      margin: 10px auto;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+    }
+    .leaflet-control-geocoder-form input {
+      width: 100% !important;
+      height: 2.5em;
+      font-size: 1em;
+      background-color: #1f1f1f;
+      color: white;
+      border: 1px solid #444;
+    }
+    .leaflet-popup-content {
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <h1>Drone Bomb Dropper Interface</h1>
+  <div id="map"></div>
+  <div id="info">Click on the map or use the search bar to select a drop location.</div>
+  <div id="status"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+  <script>
+    const esp32IP = "http://192.168.4.1"; // Change to your ESP32 IP
+
+    const map = L.map('map').setView([20.5937, 78.9629], 5); // Center on India
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add Geocoder (Search Bar)
+    L.Control.geocoder({
+      defaultMarkGeocode: false
+    })
+    .on('markgeocode', function(e) {
+      const latlng = e.geocode.center;
+      map.setView(latlng, 15);
+      placeMarker(latlng.lat, latlng.lng);
+    })
+    .addTo(map);
+
+    let marker;
+
+    map.on('click', function(e) {
+      placeMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    function placeMarker(lat, lon) {
+      if (marker) marker.remove();
+      marker = L.marker([lat, lon]).addTo(map)
+        .bindPopup(`Target Location:<br>Lat: ${lat}<br>Lon: ${lon}`).openPopup();
+
+      document.getElementById("status").innerText = `Sending drop coordinates to drone...`;
+
+      fetch(`${esp32IP}/setdrop?lat=${lat}&lon=${lon}`)
+        .then(res => res.text())
+        .then(data => {
+          document.getElementById("status").innerText = "Drop coordinates received by drone.";
+        })
+        .catch(err => {
+          document.getElementById("status").innerText = "Failed to communicate with drone.";
+          console.error(err);
+        });
+    }
+  </script>
+</body>
+</html>
